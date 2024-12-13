@@ -1,0 +1,57 @@
+<?php
+require 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    try {
+        // Start transaction
+        $pdo->beginTransaction();
+
+        // Insert into S_MTR
+        $s_mtr_sql = "INSERT INTO S_MTR (S_MTR_ID, APP_KEY_CODE, Firm_Code, Invoice_Type, App_Online_Flag, Invoice_No, Invoice_Date, Cust_Code, Cust_Name, Tot_Item, S_Amt, Tax_Amt)
+                      VALUES (:S_MTR_ID, :APP_KEY_CODE, :Firm_Code, :Invoice_Type, :App_Online_Flag, :Invoice_No, :Invoice_Date, :Cust_Code, :Cust_Name, :Tot_Item, :S_Amt, :Tax_Amt)";
+        $stmt = $pdo->prepare($s_mtr_sql);
+        $stmt->execute([
+            ':S_MTR_ID' => $data['S_MTR_ID'],
+            ':APP_KEY_CODE' => $data['APP_KEY_CODE'],
+            ':Firm_Code' => $data['Firm_Code'],
+            ':Invoice_Type' => $data['Invoice_Type'],
+            ':App_Online_Flag' => $data['App_Online_Flag'],
+            ':Invoice_No' => $data['Invoice_No'],
+            ':Invoice_Date' => $data['Invoice_Date'],
+            ':Cust_Code' => $data['Cust_Code'],
+            ':Cust_Name' => $data['Cust_Name'],
+            ':Tot_Item' => $data['Tot_Item'],
+            ':S_Amt' => $data['S_Amt'],
+            ':Tax_Amt' => $data['Tax_Amt']
+        ]);
+
+        // Insert into S_DTL
+        $s_dtl_sql = "INSERT INTO S_DTL (S_DTL_ID, APP_KEY_CODE, Firm_Code, S_MTR_ID, Item_Code, Item_Name, Qty, Item_Amt, Tax_Amt)
+                      VALUES (:S_DTL_ID, :APP_KEY_CODE, :Firm_Code, :S_MTR_ID, :Item_Code, :Item_Name, :Qty, :Item_Amt, :Tax_Amt)";
+        $stmt = $pdo->prepare($s_dtl_sql);
+        foreach ($data['items'] as $item) {
+            $stmt->execute([
+                ':S_DTL_ID' => $item['S_DTL_ID'],
+                ':APP_KEY_CODE' => $data['APP_KEY_CODE'],
+                ':Firm_Code' => $data['Firm_Code'],
+                ':S_MTR_ID' => $data['S_MTR_ID'],
+                ':Item_Code' => $item['Item_Code'],
+                ':Item_Name' => $item['Item_Name'],
+                ':Qty' => $item['Qty'],
+                ':Item_Amt' => $item['Item_Amt'],
+                ':Tax_Amt' => $item['Tax_Amt']
+            ]);
+        }
+
+        // Commit transaction
+        $pdo->commit();
+
+        echo json_encode(["message" => "Record added successfully.", "inserted_data" => $data]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(["message" => "Failed to insert data.", "error" => $e->getMessage()]);
+    }
+}
+?>
